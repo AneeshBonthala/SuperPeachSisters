@@ -13,6 +13,10 @@
 class StudentWorld : public GameWorld {
 public:
   StudentWorld(std::string assetPath);
+  ~StudentWorld();
+  //bool isActorAt(double x, double y, bool& solid, Actor* p);
+  bool isSolidActorAt(double x, double y);
+  Actor* getActorAt(double x, double y);
   virtual int init();
   virtual int move();
   virtual void cleanUp();

@@ -12,6 +12,7 @@ public:
 	virtual void doSomething() = 0;
 	virtual int damage();
 	int getHealth();
+	bool getSolidity();
 	StudentWorld* getWorld();
 
 private:

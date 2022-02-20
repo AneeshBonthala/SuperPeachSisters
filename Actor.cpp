@@ -12,6 +12,10 @@ int Actor::getHealth() {
 	return hitPoints;
 }
 
+bool Actor::getSolidity() {
+	return isSolid;
+}
+
 StudentWorld* Actor::getWorld() {
 	return worldPointer;
 }
@@ -41,7 +45,7 @@ Pipe::Pipe(StudentWorld* world, int startX, int startY)
 	: Blocks(world, startX, startY, IID_PIPE) {};
 
 void Pipe::bonk() {
-	return;
+	getWorld()->playSound(SOUND_PLAYER_BONK);
 }
 
 Peach::Peach(StudentWorld* world, int startX, int startY)
@@ -52,20 +56,29 @@ void Peach::bonk() {
 }
 
 void Peach::doSomething() {
+	if (getWorld()->isSolidActorAt(getX(), getY())) {
+		if (getWorld()->getActorAt(getX(), getY()) != nullptr)
+			getWorld()->getActorAt(getX(), getY())->bonk();
+	}
 	int keyPressed = 0;
+	double target = 0.0;
 	if (getWorld()->getKey(keyPressed))
 		switch (keyPressed) {
-		case KEY_PRESS_LEFT: 
+		case KEY_PRESS_LEFT:
 			setDirection(180);
-			//...
-			moveTo(getX() - 4, getY());
+			target = getX() - 4.0;
+			if (getWorld()->isSolidActorAt(target - 4.0, getY()))
+				getWorld()->getActorAt(target - 4.0, getY())->bonk();
+			else moveTo(target, getY());
 			break;
 		case KEY_PRESS_RIGHT:
 			setDirection(0);
-			//...
-			moveTo(getX() + 4, getY());
+			target = getX() + 4.0;
+			if (getWorld()->isSolidActorAt(target + 4.0, getY()))
+				getWorld()->getActorAt(target + 4.0, getY())->bonk();
+			else moveTo(target, getY());
 			break;
 		default: break;
-		//...
 		}
+	return;
 }
