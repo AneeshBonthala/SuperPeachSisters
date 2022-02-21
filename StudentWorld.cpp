@@ -1,5 +1,8 @@
 #include "StudentWorld.h"
 #include "GameConstants.h"
+#include <iomanip>
+#include <iostream>
+#include <sstream>
 #include <string>
 using namespace std;
 
@@ -13,33 +16,6 @@ StudentWorld::StudentWorld(string assetPath)
 StudentWorld::~StudentWorld() {
     cleanUp();
 }
-
-/*bool StudentWorld::isActorAt(double x, double y, bool& solid, Actor* p) {
-    for (size_t i = 0; i < actorList.size(); i++) {
-        if (actorList.at(i)->getX() == x && actorList.at(i)->getY() == y) {
-            if (actorList.at(i)->getSolidity()) solid = true;
-            p = actorList.at(i);
-            return true;
-        }
-    }
-    return false;
-}
-
-bool StudentWorld::isSolidActorAt(double x, double y) {
-    bool solid = false, result;
-    Actor* p = nullptr;
-    result = isActorAt(x, y, solid, p);
-    if (solid == true)
-        return true;
-    return false;
-}
-
-Actor* StudentWorld::getActorAt(double x, double y) {
-    bool solid = false, result;
-    Actor* p = nullptr;
-    result = isActorAt(x, y, solid, p);
-    return p;
-}*/
 
 bool StudentWorld::isSolidActorAt(double x, double y) {
     for (size_t i = 0; i < actorList.size(); i++) {
@@ -61,14 +37,17 @@ Actor* StudentWorld::getActorAt(double x, double y) {
 
 int StudentWorld::init() {
     Level lev(assetPath());
-    string level_file = "level01.txt";
-    Level::LoadResult result = lev.loadLevel(level_file);
+    ostringstream level_file;
+    level_file.fill('0');
+    level_file << "level" << setw(2) << getLevel() << ".txt";
+    string level = level_file.str();
+    Level::LoadResult result = lev.loadLevel(level);
     if (result == Level::load_fail_file_not_found)
-        cerr << "Could not find " << level_file << " data file" << endl;
+        cerr << "Could not find " << level << " data file" << endl;
     else if (result == Level::load_fail_bad_format)
-        cerr << level_file << " is improperly formatted" << endl;
+        cerr << level << " is improperly formatted" << endl;
     else if (result == Level::load_success) {
-        cerr << "Successfully loaded level" << endl;
+        cerr << "Successfully loaded " << level << endl;
     }
     for (int i = 0; i < 32; i++) 
         for (int j = 0; j < 32; j++) {

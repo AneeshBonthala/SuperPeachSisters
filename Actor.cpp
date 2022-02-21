@@ -2,7 +2,7 @@
 #include "StudentWorld.h"
 
 Actor::Actor(StudentWorld* world, int health, bool status, bool solidity, int imageID, int startX, int startY, int startDirection, int depth, double size)
-	: GraphObject(imageID, startX, startY, startDirection, depth, size), worldPointer(world), hitPoints(health), isAlive(status), isSolid(solidity) {};
+	: GraphObject(imageID, startX, startY, startDirection, depth, size), hitPoints(health), isAlive(status), isSolid(solidity), worldPointer(world) {};
 
 int Actor::damage() {
 	return 0;
@@ -28,7 +28,7 @@ void Blocks::doSomething() {
 }
 
 Block::Block(StudentWorld* world, int startX, int startY, int goodie)
-	: Blocks(world, startX, startY, IID_BLOCK), goodieReleased(false), whichGoodie(goodie) {};
+	: Blocks(world, startX, startY, IID_BLOCK), whichGoodie(goodie), goodieReleased(false) {};
 
 void Block::bonk() {
 	if (goodieReleased == true || whichGoodie == -1) 
@@ -56,10 +56,9 @@ void Peach::bonk() {
 }
 
 void Peach::doSomething() {
-	if (getWorld()->isSolidActorAt(getX(), getY())) {
+	if (getWorld()->isSolidActorAt(getX(), getY()))
 		if (getWorld()->getActorAt(getX(), getY()) != nullptr)
 			getWorld()->getActorAt(getX(), getY())->bonk();
-	}
 	int keyPressed = 0;
 	double target = 0.0;
 	if (getWorld()->getKey(keyPressed))
