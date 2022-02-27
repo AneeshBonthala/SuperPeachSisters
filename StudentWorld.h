@@ -14,13 +14,30 @@ class StudentWorld : public GameWorld {
 public:
   StudentWorld(std::string assetPath);
   ~StudentWorld();
+
   bool isSolidActorAt(double x, double y);
   Actor* getActorAt(double x, double y);
+  Peach* getPlayer();
+  void addActor(Actor* p);
+
+  void addToScore(int adding);
+  void setStarPower(bool setTo);
+  bool getStarPower();
+  void setShootPower(bool setTo);
+  bool getShootPower();
+  void setJumpPower(bool setTo);
+  bool getJumpPower();
+
   virtual int init();
   virtual int move();
   virtual void cleanUp();
 
 private:
+	int score;
+	int lives;
+	bool starPower;
+	bool shootPower;
+	bool jumpPower;
 	Peach* player;
 	std::vector<Actor*> actorList;
 };

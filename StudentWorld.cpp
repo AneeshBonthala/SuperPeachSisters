@@ -11,7 +11,7 @@ GameWorld* createStudentWorld(string assetPath) {
 }
 
 StudentWorld::StudentWorld(string assetPath)
-    : GameWorld(assetPath), player(nullptr) {};
+    : GameWorld(assetPath), score(0), lives(3), starPower(false), shootPower(false), jumpPower(false), player(nullptr) {};
 
 StudentWorld::~StudentWorld() {
     cleanUp();
@@ -35,6 +35,42 @@ Actor* StudentWorld::getActorAt(double x, double y) {
     return nullptr;
 }
 
+Peach* StudentWorld::getPlayer() {
+    return player;
+}
+
+void StudentWorld::addActor(Actor* p) {
+    actorList.push_back(p);
+}
+
+void StudentWorld::addToScore(int adding) {
+    score += adding;
+}
+
+void StudentWorld::setStarPower(bool setTo) {
+    starPower = setTo;
+}
+
+bool StudentWorld::getStarPower() {
+    return starPower;
+}
+
+void StudentWorld::setShootPower(bool setTo) {
+    shootPower = setTo;
+}
+
+bool StudentWorld::getShootPower() {
+    return shootPower;
+}
+
+void StudentWorld::setJumpPower(bool setTo) {
+    jumpPower = setTo;
+}
+
+bool StudentWorld::getJumpPower() {
+    return jumpPower;
+}
+
 int StudentWorld::init() {
     Level lev(assetPath());
     ostringstream level_file;
@@ -42,6 +78,7 @@ int StudentWorld::init() {
     level_file << "level" << setw(2) << getLevel() << ".txt";
     string level = level_file.str();
     Level::LoadResult result = lev.loadLevel(level);
+
     if (result == Level::load_fail_file_not_found)
         cerr << "Could not find " << level << " data file" << endl;
     else if (result == Level::load_fail_bad_format)
@@ -57,6 +94,8 @@ int StudentWorld::init() {
             ge = lev.getContentsOf(i, j);
             Actor* p = nullptr;
             switch (ge) {
+            case Level::empty:
+                break;
             case Level::peach:
                 player = new Peach(this, posX, posY);
                 break;
@@ -78,6 +117,26 @@ int StudentWorld::init() {
                 break;
             case Level::pipe:
                 p = new Pipe(this, posX, posY);
+                actorList.push_back(p);
+                break;
+            case Level::flag:
+                p = new Flag(this, posX, posY);
+                actorList.push_back(p);
+                break;
+            case Level::mario:
+                p = new Mario(this, posX, posY);
+                actorList.push_back(p);
+                break;
+            case Level::goomba:
+                p = new Goomba(this, posX, posY);
+                actorList.push_back(p);
+                break;
+            case Level::koopa:
+                p = new Koopa(this, posX, posY);
+                actorList.push_back(p);
+                break;
+            case Level::piranha:
+                p = new Piranha(this, posX, posY);
                 actorList.push_back(p);
                 break;
             }
