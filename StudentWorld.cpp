@@ -17,7 +17,6 @@ StudentWorld::~StudentWorld() {
     cleanUp();
 }
 
-
 bool StudentWorld::overlap(Actor* p, double x, double y) {
     double leftx = p->getX();
     double rightx = p->getX() + 7.0;
@@ -46,11 +45,7 @@ bool StudentWorld::inSolid(double x, double y) {
     for (size_t i = 0; i < actorList.size(); i++)
         if (actorList.at(i)->getSolidity()) {
             Actor* p = actorList.at(i);
-            double leftx = p->getX();
-            double rightx = p->getX() + 7.0;
-            double bottomy = p->getY();
-            double topy = p->getY() + 7.0;
-            if (x <= rightx && x >= leftx && y <= topy && y >= bottomy)
+            if (x <= p->getX() + 7.0 && x >= p->getX() && y <= p->getY() + 7.0 && y >= p->getY())
                 return true;
         }
     return false;

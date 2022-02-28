@@ -49,20 +49,23 @@ Peach::Peach(StudentWorld* world, double startX, double startY)
 	starPowerTicks(0), tempInvincTicks(0), time_to_recharge_before_next_fire(0), remaining_jump_distance(0) {};
 
 void Peach::setStarPowerTicks() {
-	starPowerTicks = 149;
+	starPowerTicks = 150;
 }
 
-void Peach::bonk() {
+void Peach::beDamaged() {
 	if (!getWorld()->getStarPower()) {
 		addToHealth(-1);
-		tempInvincTicks = 10;
-		getWorld()->setShootPower(false);
 		getWorld()->setJumpPower(false);
 		if (getHealth() > 0)
 			getWorld()->playSound(SOUND_PLAYER_HURT);
 		if (getHealth() <= 0)
 			setStatus(false);
 	}
+}
+
+void Peach::bonk() {
+	beDamaged();
+	tempInvincTicks = 10;
 }
 
 void Peach::doSomething() {
@@ -278,14 +281,15 @@ void Projectiles::bonk() {
 	return;
 }
 
+
 void Projectiles::doSomething() {
-	if (getWorld()->getActorAt(getX(), getY())->getHealth() != -1) {
+	if (getWorld()->getActorAt(getX(), getY())->getHealth() > 0) {
 		getWorld()->getActorAt(getX(), getY())->beDamaged();
 		setStatus(false);
 		return;
 	}
 	double targetY = getY() - 2.0;
-	if (!getWorld()->inSolid(getX(), targetY))
+	if (!getWorld()->isSolidActorAt(getX(), targetY))
 		moveTo(getX(), targetY);
 	double targetX = getX() + 2.0;
 	if (getDirection() == 180)
@@ -302,12 +306,12 @@ Piranha_Fireball::Piranha_Fireball(StudentWorld* world, double startX, double st
 
 void Piranha_Fireball::doSomething() {
 	if (getWorld()->overlap(getWorld()->getPlayer(), getX(), getY())) {
-		getWorld()->getPlayer()->addToHealth(-1);
+		getWorld()->getPlayer()->beDamaged();
 		setStatus(false);
 		return;
 	}
 	double targetY = getY() - 2.0;
-	if (!getWorld()->inSolid(getX(), targetY))
+	if (!getWorld()->isSolidActorAt(getX(), targetY))
 		moveTo(getX(), targetY);
 	double targetX = getX() + 2.0;
 	if (getDirection() == 180)
@@ -331,6 +335,7 @@ Monsters::Monsters(StudentWorld* world, double startX, double startY, int imageI
 	: Actor(world, 1, true, false, imageID, startX, startY, 180*(rand() % 2), 0) {};
 
 void Monsters::beDamaged() {
+	addToHealth(-1);
 	getWorld()->increaseScore(100);
 	setStatus(false);
 }
@@ -375,6 +380,8 @@ Koopa::Koopa(StudentWorld* world, double startX, double startY)
 	: Monsters(world, startX, startY, IID_KOOPA) {};
 
 void Koopa::beDamaged() {
+	if (getHealth() == 0) return;
+	addToHealth(-1);
 	getWorld()->increaseScore(100);
 	setStatus(false);
 	Shell* s = new Shell(getWorld(), getX(), getY(), getDirection());
@@ -404,14 +411,10 @@ void Piranha::doSomething() {
 		return;
 	}
 	double distance = abs(playerX - getX());
-	if (distance < 64.0) {
+	if (fireDelay == 0 && distance < 64.0) {
 		Piranha_Fireball* f = new Piranha_Fireball(getWorld(), getX(), getY(), getDirection());
 		getWorld()->addActor(f);
 		getWorld()->playSound(SOUND_PIRANHA_FIRE);
 		fireDelay = 40;
 	}
 }
-
-
-
-

@@ -34,6 +34,7 @@ class Peach : public Actor {
 public:
 	Peach(StudentWorld* world, double startX, double startY);
 	void setStarPowerTicks();
+	virtual void beDamaged();
 	virtual void bonk();
 	virtual void doSomething();
 private:
