@@ -14,32 +14,34 @@ class StudentWorld : public GameWorld {
 public:
   StudentWorld(std::string assetPath);
   ~StudentWorld();
-
+  bool overlap(Actor* p, double x, double y);
   bool isSolidActorAt(double x, double y);
+  bool inSolid(double x, double y);
   Actor* getActorAt(double x, double y);
   Peach* getPlayer();
   void addActor(Actor* p);
-
-  void addToScore(int adding);
   void setStarPower(bool setTo);
   bool getStarPower();
   void setShootPower(bool setTo);
   bool getShootPower();
   void setJumpPower(bool setTo);
   bool getJumpPower();
+  void setLevelComplete(bool setTo);
+  void setGameWon(bool setTo);
 
   virtual int init();
   virtual int move();
   virtual void cleanUp();
 
 private:
-	int score;
-	int lives;
 	bool starPower;
 	bool shootPower;
 	bool jumpPower;
 	Peach* player;
 	std::vector<Actor*> actorList;
+
+	bool level_complete;
+	bool game_won;
 };
 
 #endif // STUDENTWORLD_H_

@@ -2,8 +2,15 @@
 #include "StudentWorld.h"
 
 Actor::Actor(StudentWorld* world, int health, bool status, bool solidity, int imageID, double startX, double startY, int startDirection, int depth, double size)
-	: GraphObject(imageID, startX, startY, startDirection, depth, size), hitPoints(health), damaged(false), isAlive(status), isSolid(solidity), worldPointer(world) {};
+	: GraphObject(imageID, startX, startY, startDirection, depth, size), hitPoints(health), isAlive(status), isSolid(solidity), worldPointer(world) {};
 
+void Actor::peachBonk() {
+	bonk();
+}
+
+void Actor::beDamaged() {
+	return;
+}
 
 int Actor::getHealth() {
 	return hitPoints;
@@ -11,14 +18,6 @@ int Actor::getHealth() {
 
 void Actor::addToHealth(int adding) {
 	hitPoints += adding;
-}
-
-bool Actor::getDamaged() {
-	return damaged;
-}
-
-void Actor::setDamaged(bool setTo) {
-	damaged = setTo;
 }
 
 bool Actor::getStatus() {
@@ -47,20 +46,52 @@ void Actor::changeDirection() {
 
 Peach::Peach(StudentWorld* world, double startX, double startY)
 	: Actor(world, 1, true, true, IID_PEACH, startX, startY),
-	isInRechargeMode(false), isInvincible(false), starPowerTicks(0), isTempInvincible(false), initiatedJump(false), isFalling(false), remaining_jump_distance(0) {};
+	starPowerTicks(0), tempInvincTicks(0), time_to_recharge_before_next_fire(0), remaining_jump_distance(0) {};
 
 void Peach::setStarPowerTicks() {
 	starPowerTicks = 149;
 }
 
 void Peach::bonk() {
-	return;	// to be changed
+	if (!getWorld()->getStarPower()) {
+		addToHealth(-1);
+		tempInvincTicks = 10;
+		getWorld()->setShootPower(false);
+		getWorld()->setJumpPower(false);
+		if (getHealth() > 0)
+			getWorld()->playSound(SOUND_PLAYER_HURT);
+		if (getHealth() <= 0)
+			setStatus(false);
+	}
 }
 
 void Peach::doSomething() {
-	if (getWorld()->isSolidActorAt(getX(), getY()))
-		if (getWorld()->getActorAt(getX(), getY()) != nullptr)
-			getWorld()->getActorAt(getX(), getY())->bonk();
+	if (!getStatus())
+		return;
+	if (getWorld()->getStarPower()) {
+		starPowerTicks--;
+		if (starPowerTicks == 0)
+			getWorld()->setStarPower(false);
+	}
+	if (tempInvincTicks > 0)
+		tempInvincTicks--;
+	if (time_to_recharge_before_next_fire > 0)
+		time_to_recharge_before_next_fire--;
+	if (getWorld()->getActorAt(getX(), getY()) != nullptr)
+		getWorld()->getActorAt(getX(), getY())->peachBonk();
+	if (remaining_jump_distance > 0) {
+		double targetY = getY() + 4.0;
+		if (getWorld()->isSolidActorAt(getX(), targetY)) {
+			getWorld()->getActorAt(getX(), targetY)->peachBonk();
+			remaining_jump_distance = 0;
+		}
+		else if (getWorld()->getActorAt(getX(), targetY) == nullptr) {
+			moveTo(getX(), targetY);
+			remaining_jump_distance--;
+		}
+	}
+	else if (!getWorld()->isSolidActorAt(getX(), getY() - 1.0) && !getWorld()->isSolidActorAt(getX(), getY() - 2.0) && !getWorld()->isSolidActorAt(getX(), getY() - 3.0)) //FALLING
+		moveTo(getX(), getY() - 4.0);
 	int keyPressed = 0;
 	double target = 0.0;
 	if (getWorld()->getKey(keyPressed))
@@ -68,16 +99,34 @@ void Peach::doSomething() {
 		case KEY_PRESS_LEFT:
 			setDirection(180);
 			target = getX() - 4.0;
-			if (getWorld()->isSolidActorAt(target - 4.0, getY()))
-				getWorld()->getActorAt(target - 4.0, getY())->bonk();
+			if (getWorld()->isSolidActorAt(target, getY()))
+				getWorld()->getActorAt(target, getY())->bonk();
 			else moveTo(target, getY());
 			break;
 		case KEY_PRESS_RIGHT:
 			setDirection(0);
 			target = getX() + 4.0;
-			if (getWorld()->isSolidActorAt(target + 4.0, getY()))
-				getWorld()->getActorAt(target + 4.0, getY())->bonk();
+			if (getWorld()->isSolidActorAt(target, getY()))
+				getWorld()->getActorAt(target, getY())->bonk();
 			else moveTo(target, getY());
+			break;
+		case KEY_PRESS_UP:
+			if (getWorld()->isSolidActorAt(getX(), getY() - 4.0)) {
+				if (getWorld()->getJumpPower()) remaining_jump_distance = 12;
+				else remaining_jump_distance = 8;
+				getWorld()->playSound(SOUND_PLAYER_JUMP);
+			}
+			break;
+		case KEY_PRESS_SPACE:
+			if (getWorld()->getShootPower() && time_to_recharge_before_next_fire == 0) {
+				getWorld()->playSound(SOUND_PLAYER_FIRE);
+				time_to_recharge_before_next_fire = 8;
+				double targetX = getX() + 4.0;
+				if (getDirection() == 180)
+					targetX = getX() - 4.0;
+				Peach_Fireball* f = new Peach_Fireball(getWorld(), targetX, getY(), getDirection());
+				getWorld()->addActor(f);
+			}
 			break;
 		default: break;
 		}
@@ -97,11 +146,27 @@ Block::Block(StudentWorld* world, double startX, double startY, int goodie)
 	: Blocks(world, startX, startY, IID_BLOCK), whichGoodie(goodie), goodieReleased(false) {};
 
 void Block::bonk() {
-	if (goodieReleased == true || whichGoodie == -1) 
+	if (goodieReleased == true || whichGoodie == -1)	// THESE DOUBLES ARE RIGHT
 		getWorld()->playSound(SOUND_PLAYER_BONK);
 	else {
 		getWorld()->playSound(SOUND_POWERUP_APPEARS);
-		//...
+		switch (whichGoodie) {
+		case 1: {
+			Star* s = new Star(getWorld(), getX(), getY() + 8.0);
+			getWorld()->addActor(s);
+			break;
+		}
+		case 2: {
+			Mushroom* m = new Mushroom(getWorld(), getX(), getY() + 8.0);
+			getWorld()->addActor(m);
+			break;
+		}
+		case 3: {
+			Flower* f = new Flower(getWorld(), getX(), getY() + 8.0);
+			getWorld()->addActor(f);
+			break;
+		}
+		}
 		goodieReleased = true;
 	}
 	return;
@@ -127,23 +192,21 @@ Flag::Flag(StudentWorld* world, double startX, double startY)
 	: Goals(world, startX, startY, IID_FLAG) {};
 
 void Flag::advanceGame() {
-	return;
+	getWorld()->setLevelComplete(true);
 }
 
 Mario::Mario(StudentWorld* world, double startX, double startY)
 	: Goals(world, startX, startY, IID_MARIO) {};
 
 void Mario::advanceGame() {
-	return;
+	getWorld()->setGameWon(true);
 }
 
 void Goals::doSomething() {
-	if (getStatus()) return;
+	if (!getStatus()) return;
 	else {
-		double playerX = getWorld()->getPlayer()->getX();
-		double playerY = getWorld()->getPlayer()->getY();
-		if (playerX == getX() && playerY == getY()) {
-			getWorld()->addToScore(1000);
+		if (getWorld()->overlap(getWorld()->getPlayer(), getX(), getY())) {
+			getWorld()->increaseScore(1000);
 			setStatus(false);
 			advanceGame();
 		}
@@ -160,15 +223,13 @@ void Goodies::bonk() {
 }
 
 void Goodies::doSomething() {
-	double playerX = getWorld()->getPlayer()->getX();
-	double playerY = getWorld()->getPlayer()->getY();
-	if (playerX == getX() && playerY == getY()) {
-		doSomethingOverlap();
+	if (getWorld()->overlap(getWorld()->getPlayer(), getX(), getY())) {
+		doSomethingHelper();
 		setStatus(false);
 		getWorld()->playSound(SOUND_PLAYER_POWERUP);
 		return;
 	}
-	double targetY = getY() - 2;
+	double targetY = getY() - 2.0;
 	if (!getWorld()->isSolidActorAt(getX(), targetY))
 		moveTo(getX(), targetY);
 	double targetX = getX() + 2.0;
@@ -184,8 +245,8 @@ void Goodies::doSomething() {
 Flower::Flower(StudentWorld* world, double startX, double startY)
 	: Goodies(world, startX, startY, IID_FLOWER) {};
 
-void Flower::doSomethingOverlap() {
-	getWorld()->addToScore(50);
+void Flower::doSomethingHelper() {
+	getWorld()->increaseScore(50);
 	getWorld()->setShootPower(true);
 	getWorld()->getPlayer()->addToHealth(1);
 }
@@ -193,8 +254,8 @@ void Flower::doSomethingOverlap() {
 Mushroom::Mushroom(StudentWorld* world, double startX, double startY)
 	: Goodies(world, startX, startY, IID_MUSHROOM) {};
 
-void Mushroom::doSomethingOverlap() {
-	getWorld()->addToScore(75);
+void Mushroom::doSomethingHelper() {
+	getWorld()->increaseScore(75);
 	getWorld()->setJumpPower(true);
 	getWorld()->getPlayer()->addToHealth(1);
 }
@@ -202,8 +263,8 @@ void Mushroom::doSomethingOverlap() {
 Star::Star(StudentWorld* world, double startX, double startY)
 	: Goodies(world, startX, startY, IID_STAR) {};
 
-void Star::doSomethingOverlap() {
-	getWorld()->addToScore(100);
+void Star::doSomethingHelper() {
+	getWorld()->increaseScore(100);
 	getWorld()->setStarPower(true);
 	getWorld()->getPlayer()->setStarPowerTicks();
 }
@@ -218,13 +279,13 @@ void Projectiles::bonk() {
 }
 
 void Projectiles::doSomething() {
-	if (getWorld()->getActorAt(getX(), getY())) {
-		getWorld()->getActorAt(getX(), getY())->setDamaged(true);
+	if (getWorld()->getActorAt(getX(), getY())->getHealth() != -1) {
+		getWorld()->getActorAt(getX(), getY())->beDamaged();
 		setStatus(false);
 		return;
 	}
 	double targetY = getY() - 2.0;
-	if (!getWorld()->isSolidActorAt(getX(), targetY))
+	if (!getWorld()->inSolid(getX(), targetY))
 		moveTo(getX(), targetY);
 	double targetX = getX() + 2.0;
 	if (getDirection() == 180)
@@ -240,19 +301,17 @@ Piranha_Fireball::Piranha_Fireball(StudentWorld* world, double startX, double st
 	: Projectiles(world, startX, startY, startDir, IID_PIRANHA_FIRE) {};
 
 void Piranha_Fireball::doSomething() {
-	double playerX = getWorld()->getPlayer()->getX();
-	double playerY = getWorld()->getPlayer()->getY();
-	if (playerX == getX() && playerY == getY()) {
-		getWorld()->getPlayer()->setDamaged(true);
+	if (getWorld()->overlap(getWorld()->getPlayer(), getX(), getY())) {
+		getWorld()->getPlayer()->addToHealth(-1);
 		setStatus(false);
 		return;
 	}
 	double targetY = getY() - 2.0;
-	if (!getWorld()->isSolidActorAt(getX(), targetY))
+	if (!getWorld()->inSolid(getX(), targetY))
 		moveTo(getX(), targetY);
 	double targetX = getX() + 2.0;
 	if (getDirection() == 180)
-		targetX = getX() - 2.0;	//make a function
+		targetX = getX() - 2.0;
 	if (getWorld()->isSolidActorAt(targetX, getY())) {
 		setStatus(false);
 		return;
@@ -271,25 +330,26 @@ Shell::Shell(StudentWorld* world, double startX, double startY, int startDir)
 Monsters::Monsters(StudentWorld* world, double startX, double startY, int imageID)
 	: Actor(world, 1, true, false, imageID, startX, startY, 180*(rand() % 2), 0) {};
 
+void Monsters::beDamaged() {
+	getWorld()->increaseScore(100);
+	setStatus(false);
+}
+
 void Monsters::bonk() {
-	//make sure its peach
+	return;
+}
+
+void Monsters::peachBonk() {
 	if (getWorld()->getStarPower()) {
 		getWorld()->playSound(SOUND_PLAYER_KICK);
-		getWorld()->increaseScore(100);
-		setStatus(false);
-	}
-	if (getDamaged()) {
-		getWorld()->increaseScore(100);
-		setStatus(false);
+		beDamaged();
 	}
 }
 
 void Monsters::doSomething() {
 	if (!getStatus())
 		return;
-	double playerX = getWorld()->getPlayer()->getX();
-	double playerY = getWorld()->getPlayer()->getY();
-	if (playerX == getX() && playerY == getY()) {
+	if (getWorld()->overlap(getWorld()->getPlayer(), getX(), getY())) {
 		getWorld()->getPlayer()->bonk();
 		return;
 	}
@@ -298,15 +358,14 @@ void Monsters::doSomething() {
 		targetX = getX() - 1.0;
 	if (getWorld()->isSolidActorAt(targetX, getY()))
 		changeDirection();
-	double belowY = getY() - 1.0;
-	if (!getWorld()->isSolidActorAt(targetX, belowY))
+	else if (!getWorld()->inSolid(targetX, getY() - 1.0))
 		changeDirection();
 	if (getDirection() == 0)
 		targetX = getX() + 1.0;
 	else targetX = getX() - 1.0;
-	if (!getWorld()->isSolidActorAt(targetX, getY()))
-		moveTo(targetX, getY());
-	else return;
+	if (getWorld()->isSolidActorAt(targetX, getY()))
+		return;
+	else moveTo(targetX, getY());
 }
 
 Goomba::Goomba(StudentWorld* world, double startX, double startY)
@@ -315,19 +374,11 @@ Goomba::Goomba(StudentWorld* world, double startX, double startY)
 Koopa::Koopa(StudentWorld* world, double startX, double startY)
 	: Monsters(world, startX, startY, IID_KOOPA) {};
 
-void Koopa::bonk() {
-	//make sure its peach
-	if (getWorld()->getStarPower()) {
-		getWorld()->playSound(SOUND_PLAYER_KICK);
-		getWorld()->increaseScore(100);
-		setStatus(false);
-	}
-	if (getDamaged()) {
-		getWorld()->increaseScore(100);
-		setStatus(false);
-		Shell* s = new Shell(getWorld(), getX(), getY(), getDirection());
-		getWorld()->addActor(s);
-	}
+void Koopa::beDamaged() {
+	getWorld()->increaseScore(100);
+	setStatus(false);
+	Shell* s = new Shell(getWorld(), getX(), getY(), getDirection());
+	getWorld()->addActor(s);
 }
 
 Piranha::Piranha(StudentWorld* world, double startX, double startY)
@@ -336,14 +387,14 @@ Piranha::Piranha(StudentWorld* world, double startX, double startY)
 void Piranha::doSomething() {
 	if (!getStatus()) return;
 	increaseAnimationNumber();
-	double playerX = getWorld()->getPlayer()->getX();
-	double playerY = getWorld()->getPlayer()->getY();
-	if (playerX == getX() && playerY == getY()) {
+	if (getWorld()->overlap(getWorld()->getPlayer(), getX(), getY())) {
 		getWorld()->getPlayer()->bonk();
 		return;
 	}
-	if (playerY > getY() + 12 || playerY < getY())
+	double playerY = getWorld()->getPlayer()->getY();
+	if (playerY > getY() + 12.0 || playerY < getY() - 12.0)
 		return;
+	double playerX = getWorld()->getPlayer()->getX();
 	if (playerX < getX())
 		setDirection(180);
 	if (playerX > getX())

@@ -9,11 +9,11 @@ class Actor : public GraphObject {
 public:
 	Actor(StudentWorld* world, int health, bool status, bool solidity, int imageID, double startX, double startY, int startDirection = 0, int depth = 0, double size = 1.0);
 	virtual void bonk() = 0;
+	virtual void peachBonk();
 	virtual void doSomething() = 0;
+	virtual void beDamaged();
 	int getHealth();
 	void addToHealth(int adding);
-	bool getDamaged();
-	void setDamaged(bool setTo);
 	bool getStatus();
 	void setStatus(bool status);
 	bool getSolidity();
@@ -23,7 +23,6 @@ public:
 
 private:
 	int hitPoints;	// -1 for none
-	bool damaged;
 	bool isAlive;
 	bool isSolid;
 	StudentWorld* worldPointer;
@@ -38,12 +37,9 @@ public:
 	virtual void bonk();
 	virtual void doSomething();
 private:
-	bool isInRechargeMode;
-	bool isInvincible;
 	int starPowerTicks;
-	bool isTempInvincible;
-	bool initiatedJump;
-	bool isFalling;
+	int tempInvincTicks;
+	int time_to_recharge_before_next_fire;
 	int remaining_jump_distance;
 };
 
@@ -104,28 +100,28 @@ public:
 	virtual void bonk();
 	void doSomething();
 private:
-	virtual void doSomethingOverlap() = 0;
+	virtual void doSomethingHelper() = 0;
 };
 
 class Flower : public Goodies {
 public:
 	Flower(StudentWorld* world, double startX, double startY);
 private:
-	virtual void doSomethingOverlap();
+	virtual void doSomethingHelper();
 };
 
 class Mushroom : public Goodies {
 public:
 	Mushroom(StudentWorld* world, double startX, double startY);
 private:
-	virtual void doSomethingOverlap();
+	virtual void doSomethingHelper();
 };
 
 class Star : public Goodies {
 public:
 	Star(StudentWorld* world, double startX, double startY);
 private:
-	virtual void doSomethingOverlap();
+	virtual void doSomethingHelper();
 };
 
 //--------------------------------------------------------------------------------------------
@@ -158,7 +154,9 @@ public:
 class Monsters : public Actor {
 public:
 	Monsters(StudentWorld* world, double startX, double startY, int imageID);
+	virtual void beDamaged();
 	virtual void bonk();
+	void peachBonk();
 	virtual void doSomething();
 };
 
@@ -170,7 +168,7 @@ public:
 class Koopa : public Monsters {
 public:
 	Koopa(StudentWorld* world, double startX, double startY);
-	virtual void bonk();
+	virtual void beDamaged();
 };
 
 class Piranha : public Monsters {

@@ -11,26 +11,55 @@ GameWorld* createStudentWorld(string assetPath) {
 }
 
 StudentWorld::StudentWorld(string assetPath)
-    : GameWorld(assetPath), score(0), lives(3), starPower(false), shootPower(false), jumpPower(false), player(nullptr) {};
+    : GameWorld(assetPath), starPower(false), shootPower(false), jumpPower(false), player(nullptr), level_complete(false), game_won(false) {};
 
 StudentWorld::~StudentWorld() {
     cleanUp();
 }
 
+
+bool StudentWorld::overlap(Actor* p, double x, double y) {
+    double leftx = p->getX();
+    double rightx = p->getX() + 7.0;
+    double bottomy = p->getY();
+    double topy = p->getY() + 7.0;
+    if (x <= rightx && x >= leftx && y <= topy && y >= bottomy)
+        return true;
+    if (x + 7.0 <= rightx && x + 7.0 >= leftx && y <= topy && y >= bottomy)
+        return true;
+    if (x <= rightx && x >= leftx && y + 7.0 <= topy && y + 7.0 >= bottomy)
+        return true;
+    if (x + 7.0 <= rightx && x + 7.0 >= leftx && y + 7.0 <= topy && y + 7.0 >= bottomy)
+        return true;
+    return false;
+}
+
 bool StudentWorld::isSolidActorAt(double x, double y) {
     for (size_t i = 0; i < actorList.size(); i++) {
-        if (actorList.at(i)->getX() == x && actorList.at(i)->getY() == y) {
-            if (actorList.at(i)->getSolidity()) 
+        if (overlap(actorList.at(i), x, y) && actorList.at(i)->getSolidity())
+            return true;
+    }
+    return false;
+}
+
+bool StudentWorld::inSolid(double x, double y) {
+    for (size_t i = 0; i < actorList.size(); i++)
+        if (actorList.at(i)->getSolidity()) {
+            Actor* p = actorList.at(i);
+            double leftx = p->getX();
+            double rightx = p->getX() + 7.0;
+            double bottomy = p->getY();
+            double topy = p->getY() + 7.0;
+            if (x <= rightx && x >= leftx && y <= topy && y >= bottomy)
                 return true;
         }
-    }
     return false;
 }
 
 Actor* StudentWorld::getActorAt(double x, double y) {
     for (size_t i = 0; i < actorList.size(); i++) {
-        if (actorList.at(i)->getX() == x && actorList.at(i)->getY() == y)
-            return actorList.at(i);    
+        if (overlap(actorList.at(i), x, y))
+            return actorList.at(i);
     }
     return nullptr;
 }
@@ -43,9 +72,6 @@ void StudentWorld::addActor(Actor* p) {
     actorList.push_back(p);
 }
 
-void StudentWorld::addToScore(int adding) {
-    score += adding;
-}
 
 void StudentWorld::setStarPower(bool setTo) {
     starPower = setTo;
@@ -71,18 +97,32 @@ bool StudentWorld::getJumpPower() {
     return jumpPower;
 }
 
+
+void StudentWorld::setLevelComplete(bool setTo) {
+    level_complete = setTo;
+}
+
+void StudentWorld::setGameWon(bool setTo) {
+    game_won = setTo;
+}
+
 int StudentWorld::init() {
+    level_complete = false;
+    game_won = false;
     Level lev(assetPath());
     ostringstream level_file;
     level_file.fill('0');
     level_file << "level" << setw(2) << getLevel() << ".txt";
     string level = level_file.str();
     Level::LoadResult result = lev.loadLevel(level);
-
-    if (result == Level::load_fail_file_not_found)
+    if (result == Level::load_fail_file_not_found) {
         cerr << "Could not find " << level << " data file" << endl;
-    else if (result == Level::load_fail_bad_format)
+        return GWSTATUS_LEVEL_ERROR;
+    }
+    else if (result == Level::load_fail_bad_format) {
         cerr << level << " is improperly formatted" << endl;
+        return GWSTATUS_LEVEL_ERROR;
+    }
     else if (result == Level::load_success) {
         cerr << "Successfully loaded " << level << endl;
     }
@@ -148,11 +188,47 @@ int StudentWorld::move() {
     player->doSomething();
     for (size_t i = 0; i < actorList.size(); i++)
         actorList.at(i)->doSomething();
-    // This code is here merely to allow the game to build, run, and terminate after you hit enter.
-    // Notice that the return value GWSTATUS_PLAYER_DIED will cause our framework to end the current level.
+    if (!player->getStatus()) {
+        playSound(SOUND_PLAYER_DIE);
+        decLives();
+        return GWSTATUS_PLAYER_DIED;
+    }
+    if (level_complete) {
+        playSound(SOUND_FINISHED_LEVEL);
+        return GWSTATUS_FINISHED_LEVEL;
+    }
+    if (game_won) {
+        playSound(SOUND_GAME_OVER);
+        return GWSTATUS_PLAYER_WON;
+    }
+    vector<Actor*>::iterator it = actorList.begin();
+    while (it != actorList.end()) {
+        if (!(*it)->getStatus()) {
+            delete *it;
+            it = actorList.erase(it);
+        }
+        else it++;
+    }
+
+    ostringstream status_text;
+    status_text.fill('0');
+    status_text << "Lives: " << getLives() << " Level: " << setw(2) << getLevel() << " Points: " << setw(6) << getScore();
+    if (starPower)
+        status_text << " StarPower!";
+    if (shootPower)
+        status_text << " ShootPower!";
+    if (jumpPower)
+        status_text << " JumpPower!";
+    string status = status_text.str();
+    setGameStatText(status);
     return GWSTATUS_CONTINUE_GAME;
 }
 
 void StudentWorld::cleanUp() {
-    vector<Actor*>().swap(actorList);
+    delete player;
+    vector<Actor*>::iterator it = actorList.begin();
+    while (it != actorList.end()) {
+        delete *it;
+        it = actorList.erase(it);
+    }
 }
